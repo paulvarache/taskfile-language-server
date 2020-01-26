@@ -1,0 +1,19 @@
+version: 2
+
+vars:
+  APP_NAME: hello
+
+tasks:
+  run:
+    desc: App name is {{.APP_NAME}}
+    cmds:
+      - go build
+      - ./yaml{{exeExt}} {{.APP_NAME}}
+    vars:
+      RUN_NAME: hi
+  build:
+    sources: ["**/*.go"]
+    generates: ["./yaml{{exeExt}}"]
+    cmds:
+      - go build
+      - echo "Done"
