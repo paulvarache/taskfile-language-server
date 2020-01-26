@@ -1,6 +1,3 @@
-trigger:
-- master
-
 strategy:
   matrix:
     linux:
@@ -28,3 +25,14 @@ steps:
     version: '1.13.6'
 
 - script: go build -o dist/taskfile_language_server_$(os)_$(arch)$(ext)
+
+- task: GitHubRelease@1
+  inputs:
+    gitHubConnection: 'github.com_paulvarache'
+    repositoryName: '$(Build.Repository.Name)'
+    action: 'create'
+    target: '$(Build.SourceVersion)'
+    tagSource: 'gitTag'
+    assets: '$(Build.ArtifactStagingDirectory)/dist/*'
+    changeLogCompareToRelease: 'lastFullRelease'
+    changeLogType: 'commitBased'
