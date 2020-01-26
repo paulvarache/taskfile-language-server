@@ -81,7 +81,6 @@ func PreloadWithBytes(path string, contents []byte) {
 		return
 	}
 	Taskfiles[path] = tf
-	return
 }
 
 func Preload(path string) error {
@@ -89,7 +88,8 @@ func Preload(path string) error {
 	if err != nil {
 		return err
 	}
-	return PreloadWithBytes(path, bytes)
+	PreloadWithBytes(path, bytes)
+	return nil
 }
 
 func IsTemplateKey(key string) bool {
