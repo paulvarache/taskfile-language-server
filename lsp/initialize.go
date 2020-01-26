@@ -2,7 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
-	"yaml/jsonrpc"
+	"taskfile-language-server/jsonrpc"
 
 	"github.com/sourcegraph/go-lsp"
 )

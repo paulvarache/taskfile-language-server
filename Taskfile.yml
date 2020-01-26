@@ -1,19 +1,25 @@
 version: 2
 
 vars:
-  APP_NAME: hello
+  APP_NAME: taskfile_language_server
+  HASH: $(git rev-parse --short HEAD)
+  VERSION: 0.0.0
+  OUTPUT: dist/{{.APP_NAME}}_{{OS}}_{{ARCH}}{{exeExt}}
 
 tasks:
-  run:
-    desc: App name is {{.APP_NAME}}
-    cmds:
-      - go build
-      - ./yaml{{exeExt}} {{.APP_NAME}}
-    vars:
-      RUN_NAME: hi
+
   build:
     sources: ["**/*.go"]
-    generates: ["./yaml{{exeExt}}"]
+    generates: ["./taskfile-language-server{{exeExt}}"]
     cmds:
       - go build
       - echo "Done"
+
+  build:release:
+    cmds:
+      - go build -ldflags="-X 'main.BuildVersion={{.VERSION}}' -X 'main.BuildHash={{.HASH}}'" -o {{.OUTPUT}}
+  
+  get-output:
+    cmds:
+      - echo {{.OUTPUT}}
+    silent: true

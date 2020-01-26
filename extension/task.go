@@ -3,8 +3,8 @@ package extension
 import (
 	"encoding/json"
 	"path/filepath"
-	"yaml/jsonrpc"
-	"yaml/taskfile"
+	"taskfile-language-server/jsonrpc"
+	"taskfile-language-server/taskfile"
 )
 
 type GetTasksParams struct {

@@ -6,34 +6,44 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
-	"yaml/extension"
-	"yaml/jsonrpc"
-	"yaml/lsp"
+	"taskfile-language-server/extension"
+	"taskfile-language-server/jsonrpc"
+	"taskfile-language-server/lsp"
+)
+
+var (
+	BuildVersion string = "dev"
+	BuildHash    string = "dev"
 )
 
 func main() {
-	if len(os.Args) >= 2 && os.Args[1] == "try" {
-		cmd := exec.Command(os.Args[0])
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		out, err := cmd.StdinPipe()
-		if err != nil {
-			panic(err)
-		}
-		err = cmd.Start()
-		if err != nil {
-			panic(err)
-		}
-		ctnt := `{"id": 12, "method": "try"}`
-		out.Write([]byte(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(ctnt), ctnt)))
-		return
-	}
+	// if len(os.Args) >= 2 && os.Args[1] == "try" {
+	// 	cmd := exec.Command(os.Args[0])
+	// 	cmd.Stdout = os.Stdout
+	// 	cmd.Stderr = os.Stderr
+	// 	out, err := cmd.StdinPipe()
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	err = cmd.Start()
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	ctnt := `{"id": 12, "method": "try"}`
+	// 	out.Write([]byte(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(ctnt), ctnt)))
+	// 	return
+	// }
 
+	version := flag.Bool("version", false, "display the Language Server version")
 	logfile := flag.String("logfile", "", "log to this file")
 	traceEnabled := flag.Bool("trace", false, "print all requests and responses")
 
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("Taskfile Language Server version %s-%s", BuildVersion, BuildHash)
+		return
+	}
 
 	var output io.Writer = os.Stderr
 

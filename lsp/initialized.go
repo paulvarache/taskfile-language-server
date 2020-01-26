@@ -2,7 +2,7 @@ package lsp
 
 import "encoding/json"
 
-import "yaml/jsonrpc"
+import "taskfile-language-server/jsonrpc"
 
 func (s *LSPServer) InitializedHandler(params json.RawMessage) (interface{}, *jsonrpc.ResponseError) {
 	i, ok := s.impl.(ServerImplementation)

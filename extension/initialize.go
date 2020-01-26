@@ -1,7 +1,7 @@
 package extension
 
 import (
-	"yaml/jsonrpc"
+	"taskfile-language-server/jsonrpc"
 
 	"github.com/sourcegraph/go-lsp"
 )

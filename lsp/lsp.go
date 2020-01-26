@@ -3,7 +3,7 @@ package lsp
 import (
 	"fmt"
 	"log"
-	"yaml/jsonrpc"
+	"taskfile-language-server/jsonrpc"
 
 	"github.com/sourcegraph/go-lsp"
 )

@@ -1,7 +1,7 @@
 package extension
 
 import (
-	"yaml/taskfile"
+	"taskfile-language-server/taskfile"
 
 	"github.com/sourcegraph/go-lsp"
 )

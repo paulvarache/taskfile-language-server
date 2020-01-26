@@ -1,6 +1,6 @@
 package lsp
 
-import "yaml/jsonrpc"
+import "taskfile-language-server/jsonrpc"
 
 const (
 	RequestCancelled jsonrpc.ErrorCode = -32800

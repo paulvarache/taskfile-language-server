@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"yaml/jsonrpc"
+	"taskfile-language-server/jsonrpc"
 
 	"github.com/sourcegraph/go-lsp"
 )

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/url"
 	"runtime"
-	"yaml/taskfile"
+	"taskfile-language-server/taskfile"
 
 	"github.com/sourcegraph/go-lsp"
 )

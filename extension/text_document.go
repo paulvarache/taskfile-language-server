@@ -3,8 +3,8 @@ package extension
 import (
 	"fmt"
 	"os"
-	"yaml/jsonrpc"
-	"yaml/taskfile"
+	"taskfile-language-server/jsonrpc"
+	"taskfile-language-server/taskfile"
 
 	"github.com/sourcegraph/go-lsp"
 )
