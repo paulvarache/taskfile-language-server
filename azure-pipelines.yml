@@ -1,12 +1,30 @@
 trigger:
 - master
 
+strategy:
+  matrix:
+    linux:
+      imageName: 'ubuntu-latest'
+      os: linux
+      arch: x64
+      ext: ""
+    mac:
+      imageName: 'macos-10.13'
+      os: darwin
+      arch: x64
+      ext: ""
+    windows:
+      imageName: 'vs2017-win2016'
+      os: windows
+      arch: x64
+      ext: .exe
+
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: $(imageName)
 
 steps:
 - task: GoTool@0
   inputs:
     version: '1.13.6'
 
-- script: go build
+- script: go build -o dist/taskfile_language_server_$(os)_$(arch)$(ext)
