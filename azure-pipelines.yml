@@ -23,20 +23,24 @@ steps:
   inputs:
     filePath: './ci/install-task.sh'
   condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install task
 
 - bash: brew install go-task/tap/go-task
   condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install task
 
 - task: PowerShell@2
   inputs:
     filePath: './ci/install-task.ps1'
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install task
 
 - script: task build:release
+  displayName: Build binary
 
 - powershell: |
     $tag = "$(Build.SourceBranch)" -replace "refs/tags/", ""  
-    echo "##vso[task.setvariable variable=tag;isOutput=true]$tag"
+    echo "##vso[task.setvariable variable=tag]$tag"
   displayName: Get tag
 
 - task: GitHubRelease@1
@@ -50,3 +54,4 @@ steps:
     assetUploadMode: 'replace'
     addChangeLog: false
   condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
+  displayName: Release on Github
