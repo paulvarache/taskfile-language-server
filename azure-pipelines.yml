@@ -14,9 +14,6 @@ strategy:
 pool:
   vmImage: $(imageName)
 
-variables:
-  tag: 0.0.0
-
 steps:
 - task: GoTool@0
   inputs:
@@ -37,6 +34,11 @@ steps:
 
 - script: task build:release
 
+- powershell: |
+    $tag = "$(Build.SourceBranch)" -replace "refs/tags/", ""  
+    echo "##vso[task.setvariable variable=tag;isOutput=true]$tag"
+  displayName: Get tag
+
 - task: GitHubRelease@1
   inputs:
     gitHubConnection: 'github.com_paulvarache'
@@ -47,4 +49,4 @@ steps:
     assets: 'dist/**/*'
     assetUploadMode: 'replace'
     addChangeLog: false
-  condition: contains(variables['Build.SourceBranch'], 'refs/tags')
+  condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
