@@ -25,21 +25,9 @@ steps:
   inputs:
     version: '1.13.6'
 
-- task: Bash@3
+- task: taskfile-pipeline-task@0
   inputs:
-    filePath: './ci/install-task.sh'
-  condition: eq( variables['Agent.OS'], 'Linux' )
-  displayName: Install task
-
-- bash: brew install go-task/tap/go-task
-  condition: eq( variables['Agent.OS'], 'Darwin' )
-  displayName: Install task
-
-- task: PowerShell@2
-  inputs:
-    filePath: './ci/install-task.ps1'
-  condition: eq( variables['Agent.OS'], 'Windows_NT' )
-  displayName: Install task
+    version: '2.8'
 
 - script: task build:release
   displayName: Build binary
