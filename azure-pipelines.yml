@@ -6,10 +6,16 @@ strategy:
   matrix:
     linux:
       imageName: 'ubuntu-latest'
+      archiveType: tar
+      archiveExt: .tar.gz
     mac:
       imageName: 'macos-10.13'
+      archiveType: tar
+      archiveExt: .tar.gz
     windows:
       imageName: 'vs2017-win2016'
+      archiveType: zip
+      archiveExt: .zip
 
 pool:
   vmImage: $(imageName)
@@ -19,29 +25,40 @@ steps:
   inputs:
     version: '1.13.6'
 
-- task: Bash@3
+- task: UseTaskfile@0
   inputs:
-    filePath: './ci/install-task.sh'
-  condition: eq( variables['Agent.OS'], 'Linux' )
-  displayName: Install task
-
-- bash: brew install go-task/tap/go-task
-  condition: eq( variables['Agent.OS'], 'Darwin' )
-  displayName: Install task
-
-- task: PowerShell@2
-  inputs:
-    filePath: './ci/install-task.ps1'
-  condition: eq( variables['Agent.OS'], 'Windows_NT' )
-  displayName: Install task
+    version: '2.8'
 
 - script: task build:release
   displayName: Build binary
 
 - powershell: |
+    $output = task get-output
+    echo "##vso[task.setvariable variable=output]$output"
+  displayName: Get target output
+
+- powershell: |
     $tag = "$(Build.SourceBranch)" -replace "refs/tags/", ""  
     echo "##vso[task.setvariable variable=tag]$tag"
   displayName: Get tag
+
+- task: CopyFiles@2
+  inputs:
+    Contents: |
+      README.md
+      LICENSE
+    TargetFolder: 'dist'
+  displayName: Copy Readme.md and LICENSE
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: 'dist'
+    includeRootFolder: false
+    archiveType: $(archiveType)
+    archiveFile: $(Build.ArtifactStagingDirectory)/$(output)$(archiveExt)
+    replaceExistingArchive: true
+  condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
+  displayName: Archive
 
 - task: GitHubRelease@1
   inputs:
@@ -50,7 +67,7 @@ steps:
     action: 'edit'
     target: '$(Build.SourceVersion)'
     tag: $(tag)
-    assets: 'dist/**/*'
+    assets: '$(Build.ArtifactStagingDirectory)/*'
     assetUploadMode: 'replace'
     addChangeLog: false
   condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
