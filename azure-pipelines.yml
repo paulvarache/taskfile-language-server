@@ -45,6 +45,11 @@ steps:
   displayName: Build binary
 
 - powershell: |
+    $tag = task get-output  
+    echo "##vso[task.setvariable variable=output]$output"
+  displayName: Get target output
+
+- powershell: |
     $tag = "$(Build.SourceBranch)" -replace "refs/tags/", ""  
     echo "##vso[task.setvariable variable=tag]$tag"
   displayName: Get tag
@@ -62,7 +67,7 @@ steps:
     rootFolderOrFile: 'dist'
     includeRootFolder: false
     archiveType: $(archiveType)
-    archiveFile: $(Build.ArtifactStagingDirectory)/$(task get-output)$(archiveExt)
+    archiveFile: $(Build.ArtifactStagingDirectory)/$(output)$(archiveExt)
     replaceExistingArchive: true
   condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
   displayName: Archive
