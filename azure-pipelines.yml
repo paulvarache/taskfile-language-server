@@ -6,10 +6,16 @@ strategy:
   matrix:
     linux:
       imageName: 'ubuntu-latest'
+      archiveType: zip
+      archiveExt: .zip
     mac:
       imageName: 'macos-10.13'
+      archiveType: tar
+      archiveExt: .tar.gz
     windows:
       imageName: 'vs2017-win2016'
+      archiveType: tar
+      archiveExt: .tar.gz
 
 pool:
   vmImage: $(imageName)
@@ -43,6 +49,24 @@ steps:
     echo "##vso[task.setvariable variable=tag]$tag"
   displayName: Get tag
 
+- task: CopyFiles@2
+  inputs:
+    Contents: |
+      README.md
+      LICENSE
+    TargetFolder: 'dist'
+  displayName: Copy Readme.md and LICENSE
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: 'dist'
+    includeRootFolder: false
+    archiveType: $(archiveType)
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(task get-output).$(archiveExt))'
+    replaceExistingArchive: true
+  condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
+  displayName: Archive
+
 - task: GitHubRelease@1
   inputs:
     gitHubConnection: 'github.com_paulvarache'
@@ -50,7 +74,7 @@ steps:
     action: 'edit'
     target: '$(Build.SourceVersion)'
     tag: $(tag)
-    assets: 'dist/**/*'
+    assets: '$(Build.ArtifactStagingDirectory)/*'
     assetUploadMode: 'replace'
     addChangeLog: false
   condition: contains(variables['Build.SourceBranch'], 'refs/tags/')

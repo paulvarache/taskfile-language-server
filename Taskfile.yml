@@ -4,7 +4,7 @@ vars:
   APP_NAME: taskfile_language_server
   HASH: $(git rev-parse --short HEAD)
   VERSION: 0.0.0
-  OUTPUT: dist/{{.APP_NAME}}_{{OS}}_{{ARCH}}{{exeExt}}
+  OUTPUT: dist/{{.APP_NAME}}_{{OS}}_{{ARCH}}
 
 tasks:
 
@@ -17,7 +17,7 @@ tasks:
 
   build:release:
     cmds:
-      - go build -ldflags="-X 'main.BuildVersion={{.VERSION}}' -X 'main.BuildHash={{.HASH}}'" -o {{.OUTPUT}}
+      - go build -ldflags="-X 'main.BuildVersion={{.VERSION}}' -X 'main.BuildHash={{.HASH}}'" -o {{.OUTPUT}}{{exeExt}}
   
   get-output:
     cmds:
