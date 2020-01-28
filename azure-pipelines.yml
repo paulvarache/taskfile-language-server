@@ -62,7 +62,7 @@ steps:
     rootFolderOrFile: 'dist'
     includeRootFolder: false
     archiveType: $(archiveType)
-    archiveFile: '$(Build.ArtifactStagingDirectory)/$(task get-output).$(archiveExt))'
+    archiveFile: $(Build.ArtifactStagingDirectory)/$(task get-output)$(archiveExt)
     replaceExistingArchive: true
   condition: contains(variables['Build.SourceBranch'], 'refs/tags/')
   displayName: Archive
