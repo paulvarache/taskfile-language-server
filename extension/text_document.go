@@ -46,17 +46,22 @@ func (t *TaskfileExtension) TextDocumentCompletion(params *lsp.CompletionParams)
 	if err != nil {
 		return nil, jsonrpc.NewError(jsonrpc.InternalError, err.Error(), nil)
 	}
+	empty := &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete: false}
 	tf := taskfile.Taskfiles[p]
 	if tf == nil {
-		return nil, jsonrpc.NewError(jsonrpc.InternalError, "Could not find taskfile", nil)
+		t.Logger.Printf("Could not find node tree for %s", p)
+		// No taskfile means the parsing went wrong. Maybe the user is stil typing
+		return empty, nil
 	}
 	task := tf.TaskAtPosition(params.Position.Line, params.Position.Character)
 	if task == nil {
-		return &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete: false}, nil
+		t.Logger.Println("Cursor is not in task")
+		return empty, nil
 	}
 	exp := task.ExpressionAtPosition(params.Position.Line, params.Position.Character)
 	if exp == nil {
-		return &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete: false}, nil
+		t.Logger.Println("Cursor is not in expression")
+		return empty, nil
 	}
 	items := make([]lsp.CompletionItem, 0)
 	// Add local variables

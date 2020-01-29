@@ -24,6 +24,13 @@ type Response struct {
 	ID     int            `json:"id"`
 }
 
+type Resolution struct {
+	ID    int
+	Reply bool
+	Res   interface{}
+	Err   *ResponseError
+}
+
 type Handler func(json.RawMessage) (interface{}, *ResponseError)
 type NotificationHandler func(json.RawMessage)
 
@@ -41,30 +48,50 @@ func NewServer() *Server {
 		notificationHandlers: make(map[string]NotificationHandler),
 		requests:             make(chan *Request, 8),
 		out:                  make(chan *Resolution, 8),
-		Logger:               log.New(ioutil.Discard, "[jsonrpc] ", 0),
+		Logger:               log.New(ioutil.Discard, "[jsonrpc] ", log.Ldate|log.Ltime),
 	}
 }
 
+// AddHandler registers a handler for a given method
 func (s *Server) AddHandler(method string, handler Handler) {
+	_, exists := s.handlers[method]
+	if exists {
+		s.HandleError(fmt.Errorf("Handler redefinition: %s", method))
+		return
+	}
 	s.handlers[method] = handler
 }
 
+// AddHandler registers a notification handler for a given method
 func (s *Server) AddNotificationHandler(method string, handler NotificationHandler) {
+	_, exists := s.notificationHandlers[method]
+	if exists {
+		s.HandleError(fmt.Errorf("Notification handler redefinition: %s", method))
+		return
+	}
 	s.notificationHandlers[method] = handler
 }
 
+// GetResponse will match a handler to the request/notification,
+// resolve the response, then send a response if there are any
 func (s *Server) GetResponse(r *Request) (bool, interface{}, *ResponseError) {
+	// Try to match a request/response handler
 	handler := s.handlers[r.Method]
 	s.Logger.Printf("Found Handler for method %s\n", r.Method)
 	if handler == nil {
+		// None found, try to match a notification handler
 		handler := s.notificationHandlers[r.Method]
 		if handler == nil {
+			// Handler not found at all
 			s.Logger.Printf("Method not found %s\n", r.Method)
 			return true, nil, NewError(MethodNotFound, "", nil)
 		}
-		handler(r.Params)
+		// Call the notification handler
+		// Use a goroutine to resolve this request as fast as possible
+		go handler(r.Params)
 		return false, nil, nil
 	}
+	// Call the request handler
 	res, err := handler(r.Params)
 	if err != nil {
 		return true, nil, err
@@ -72,19 +99,15 @@ func (s *Server) GetResponse(r *Request) (bool, interface{}, *ResponseError) {
 	return true, res, nil
 }
 
-type Resolution struct {
-	ID    int
-	Reply bool
-	Res   interface{}
-	Err   *ResponseError
-}
-
+// HandleRequest resolves the response and send it down the output
 func (s *Server) HandleRequest(req *Request, out io.Writer) {
 	reply, res, err := s.GetResponse(req)
 	resolution := &Resolution{Reply: reply, Res: res, Err: err, ID: req.ID}
 	s.HandleResponse(resolution, out)
 }
 
+// HandleResponse will send a response or error down the output
+// based on the properties of a given resolution
 func (s *Server) HandleResponse(resolution *Resolution, out io.Writer) {
 	if resolution.Err != nil {
 		err := s.PrintError(out, resolution.ID, resolution.Err)
@@ -100,10 +123,13 @@ func (s *Server) HandleResponse(resolution *Resolution, out io.Writer) {
 	}
 }
 
+// HandleError simply prints the error and exits the process
 func (s *Server) HandleError(err error) {
-	s.Logger.Fatal(err)
+	s.Logger.Panic(err)
 }
 
+// Listen continuously reads the input for requests
+// It uses goroutines to handle requests as they come
 func (s *Server) Listen(in io.Reader, out io.Writer) {
 	for {
 		req, readErr := ReadRequest(in)
@@ -115,11 +141,14 @@ func (s *Server) Listen(in io.Reader, out io.Writer) {
 	}
 }
 
+// PrintError send an error back to the client
 func (s *Server) PrintError(w io.Writer, id int, err *ResponseError) error {
 	return s.PrintResponse(w, id, nil, err)
 }
 
+// PrintResponse sends a response back to the client
 func (s *Server) PrintResponse(w io.Writer, id int, contents interface{}, resErr *ResponseError) error {
+	// Build the response object
 	res := &Response{ID: id, Error: resErr, Result: contents}
 	jsonString, err := json.Marshal(res)
 	if err != nil {

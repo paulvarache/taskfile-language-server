@@ -11,42 +11,27 @@ import (
 	"taskfile-language-server/lsp"
 )
 
+// These variables are provided at build time using ldflags
 var (
 	BuildVersion string = "dev"
 	BuildHash    string = "dev"
 )
 
 func main() {
-	// if len(os.Args) >= 2 && os.Args[1] == "try" {
-	// 	cmd := exec.Command(os.Args[0])
-	// 	cmd.Stdout = os.Stdout
-	// 	cmd.Stderr = os.Stderr
-	// 	out, err := cmd.StdinPipe()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	err = cmd.Start()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	ctnt := `{"id": 12, "method": "try"}`
-	// 	out.Write([]byte(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(ctnt), ctnt)))
-	// 	return
-	// }
-
 	version := flag.Bool("version", false, "display the Language Server version")
 	logfile := flag.String("logfile", "", "log to this file")
 	traceEnabled := flag.Bool("trace", false, "print all requests and responses")
 
 	flag.Parse()
 
+	// Display version if asked for it
 	if *version {
 		fmt.Printf("Taskfile Language Server version %s-%s", BuildVersion, BuildHash)
 		return
 	}
 
 	var output io.Writer = os.Stderr
-
+	// Output to a file if a path is provided
 	if *logfile != "" {
 		f, err := os.OpenFile(*logfile, os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
@@ -56,24 +41,23 @@ func main() {
 		output = f
 	}
 
-	logger := log.New(output, "", 0)
+	logger := log.New(output, "", log.Ldate|log.Ltime)
 
 	reader := os.Stdin
 	writer := os.Stdout
 
-	impl := &extension.TaskfileExtension{}
-
+	// Create the taskfile implementation of the LSP
+	impl := extension.New()
+	// Create the jsonrpc server
 	s := jsonrpc.NewServer()
 
+	// Override the Discard output and provide the same output as the logger
 	if *traceEnabled {
-		// Override the Discard output and provide the same output as the logger
 		s.Logger.SetOutput(output)
+		impl.Logger.SetOutput(output)
 	}
 
+	// Create the LSP Server
 	_ = lsp.NewServer(s, impl, logger)
-
-	s.AddHandler("extension/getTasks", impl.GetTasks)
-
-	logger.Println("Listening to Stdin")
 	s.Listen(reader, writer)
 }

@@ -36,17 +36,29 @@ type TextDocumentHover interface {
 }
 
 type LSPServer struct {
-	server *jsonrpc.Server
-	impl   interface{}
-	logger *log.Logger
+	server      *jsonrpc.Server
+	impl        interface{}
+	logger      *log.Logger
+	wasShutdown bool
 }
 
-func NewServer(s *jsonrpc.Server, impl interface{}, logger *log.Logger) *LSPServer {
-	server := &LSPServer{server: s, impl: impl}
+type Implementation interface {
+	RegisterHandlers(*jsonrpc.Server)
+}
+
+func NewServer(s *jsonrpc.Server, impl Implementation, logger *log.Logger) *LSPServer {
+	server := &LSPServer{
+		server:      s,
+		impl:        impl,
+		wasShutdown: false,
+	}
 	server.logger = logger
 
+	// Register the supported handlers
 	s.AddHandler("initialize", server.InitializeHandler)
 	s.AddHandler("initialized", server.InitializedHandler)
+	s.AddHandler("shutdown", server.ShutdownHandler)
+	s.AddNotificationHandler("exit", server.ExitHandler)
 
 	s.AddNotificationHandler("textDocument/didOpen", server.TextDocumentOpen)
 	s.AddNotificationHandler("textDocument/didChange", server.TextDocumentChange)
@@ -59,6 +71,7 @@ func NewServer(s *jsonrpc.Server, impl interface{}, logger *log.Logger) *LSPServ
 	return server
 }
 
+// MethodNotFoundError is a convenience function to create the JSONRPC Method Not found error
 func MethodNotFoundError(name string) *jsonrpc.ResponseError {
 	return jsonrpc.NewError(jsonrpc.MethodNotFound, fmt.Sprintf("Server is not implementing the %s method", name), nil)
 }

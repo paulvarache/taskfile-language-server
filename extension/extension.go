@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"runtime"
+	"taskfile-language-server/jsonrpc"
 	"taskfile-language-server/taskfile"
 
 	"github.com/sourcegraph/go-lsp"
@@ -17,7 +18,7 @@ func GetPath(uri lsp.DocumentURI) (string, error) {
 		return path, err
 	}
 	path = url.Path
-	// Remove the leding slash if on windows
+	// Remove the laeding slash if on windows
 	if runtime.GOOS == "windows" {
 		path = url.Path[1:]
 	}
@@ -38,5 +39,9 @@ type TaskfileExtension struct {
 }
 
 func New() *TaskfileExtension {
-	return &TaskfileExtension{Logger: log.New(ioutil.Discard, "[taskfile]", 0)}
+	return &TaskfileExtension{Logger: log.New(ioutil.Discard, "[taskfile]", log.Ldate|log.Ltime)}
+}
+
+func (t *TaskfileExtension) RegisterHandlers(s *jsonrpc.Server) {
+	s.AddHandler("extension/getTasks", t.GetTasks)
 }
