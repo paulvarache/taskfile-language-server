@@ -30,18 +30,33 @@ func reloadTaskfile(docUri lsp.DocumentURI, text string) error {
 	if err != nil {
 		return err
 	}
-	taskfile.PreloadWithBytes(path, []byte(text))
+	taskfile.Invalidate(path, text)
 	return nil
 }
 
 type TaskfileExtension struct {
-	Logger *log.Logger
+	Logger        *log.Logger
+	notifications chan *jsonrpc.Notification
 }
 
 func New() *TaskfileExtension {
-	return &TaskfileExtension{Logger: log.New(ioutil.Discard, "[taskfile]", log.Ldate|log.Ltime)}
+	return &TaskfileExtension{
+		Logger:        log.New(ioutil.Discard, "[taskfile]", log.Ldate|log.Ltime),
+		notifications: make(chan *jsonrpc.Notification),
+	}
 }
 
 func (t *TaskfileExtension) RegisterHandlers(s *jsonrpc.Server) {
 	s.AddHandler("extension/getTasks", t.GetTasks)
+}
+
+func (t *TaskfileExtension) SendNotification(method string, contents interface{}) {
+	t.notifications <- &jsonrpc.Notification{
+		Method: method,
+		Params: contents,
+	}
+}
+
+func (t *TaskfileExtension) Notifications() chan *jsonrpc.Notification {
+	return t.notifications
 }

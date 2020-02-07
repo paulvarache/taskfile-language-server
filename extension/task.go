@@ -11,6 +11,19 @@ type GetTasksParams struct {
 	FsPath string `json:"fsPath"`
 }
 
+func GetTaskInfo(scope string, task *taskfile.Task) *TaskInfo {
+	return &TaskInfo{
+		Scope: scope,
+		Task: TaskRef{
+			Value:     task.Name,
+			StartLine: task.Range[0],
+			StartCol:  task.Range[1],
+			EndLine:   task.Range[2],
+			EndCol:    task.Range[3],
+		},
+	}
+}
+
 func (t *TaskfileExtension) GetTasks(params json.RawMessage) (interface{}, *jsonrpc.ResponseError) {
 	parsed := &GetTasksParams{}
 
@@ -19,24 +32,21 @@ func (t *TaskfileExtension) GetTasks(params json.RawMessage) (interface{}, *json
 		return nil, jsonrpc.NewError(jsonrpc.ParseError, err.Error(), nil)
 	}
 
-	tf, ok := taskfile.Taskfiles[filepath.ToSlash(parsed.FsPath)]
-	if !ok {
+	path := filepath.ToSlash(parsed.FsPath)
+
+	tf := taskfile.GetParsedTaskfile(path)
+	if tf == nil {
 		return nil, jsonrpc.NewError(jsonrpc.ParseError, "Could not find taskfile", nil)
 	}
 
 	tasks := make([]*TaskInfo, 0)
 
+	if tf.Tasks == nil {
+		return tasks, nil
+	}
+
 	for _, t := range tf.Tasks {
-		ti := &TaskInfo{
-			Scope: parsed.FsPath,
-			Task: TaskRef{
-				Value:     t.Name,
-				StartLine: t.Range[0],
-				StartCol:  t.Range[1],
-				EndLine:   t.Range[2],
-				EndCol:    t.Range[3],
-			},
-		}
+		ti := GetTaskInfo(path, t)
 		tasks = append(tasks, ti)
 	}
 

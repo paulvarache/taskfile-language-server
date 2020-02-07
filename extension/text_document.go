@@ -2,7 +2,6 @@ package extension
 
 import (
 	"fmt"
-	"os"
 	"taskfile-language-server/jsonrpc"
 	"taskfile-language-server/taskfile"
 
@@ -12,14 +11,14 @@ import (
 func (t *TaskfileExtension) TextDocumentDidOpen(params *lsp.DidOpenTextDocumentParams) {
 	err := reloadTaskfile(params.TextDocument.URI, params.TextDocument.Text)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		t.Logger.Panicf(err.Error())
 	}
 }
 
 func (t *TaskfileExtension) TextDocumentDidChange(params *lsp.DidChangeTextDocumentParams) {
 	err := reloadTaskfile(params.TextDocument.URI, params.ContentChanges[0].Text)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
+		t.Logger.Panicf(err.Error())
 	}
 }
 
@@ -47,7 +46,7 @@ func (t *TaskfileExtension) TextDocumentCompletion(params *lsp.CompletionParams)
 		return nil, jsonrpc.NewError(jsonrpc.InternalError, err.Error(), nil)
 	}
 	empty := &lsp.CompletionList{Items: []lsp.CompletionItem{}, IsIncomplete: false}
-	tf := taskfile.Taskfiles[p]
+	tf := taskfile.GetParsedTaskfile(p)
 	if tf == nil {
 		t.Logger.Printf("Could not find node tree for %s", p)
 		// No taskfile means the parsing went wrong. Maybe the user is stil typing

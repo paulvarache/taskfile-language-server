@@ -10,9 +10,9 @@ tasks:
 
   build:
     sources: ["**/*.go"]
-    generates: ["./taskfile-language-server{{exeExt}}"]
+    generates: ["./taskfile_language_server{{exeExt}}"]
     cmds:
-      - go build
+      - go build -o taskfile_language_server{{exeExt}}
       - echo "Done"
 
   build:release:

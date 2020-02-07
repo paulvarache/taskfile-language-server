@@ -8,6 +8,10 @@ import (
 	"log"
 )
 
+type NotificationsProvider interface {
+	Notifications() chan *Notification
+}
+
 type Headers map[string]string
 
 type Request struct {
@@ -24,6 +28,11 @@ type Response struct {
 	ID     int            `json:"id"`
 }
 
+type Notification struct {
+	Method string      `json:"method"`
+	Params interface{} `json:"params"`
+}
+
 type Resolution struct {
 	ID    int
 	Reply bool
@@ -35,21 +44,31 @@ type Handler func(json.RawMessage) (interface{}, *ResponseError)
 type NotificationHandler func(json.RawMessage)
 
 type Server struct {
-	handlers             map[string]Handler
-	notificationHandlers map[string]NotificationHandler
-	requests             chan *Request
-	out                  chan *Resolution
-	Logger               *log.Logger
+	handlers              map[string]Handler
+	notificationHandlers  map[string]NotificationHandler
+	requests              chan *Request
+	out                   chan *Resolution
+	Logger                *log.Logger
+	Reader                io.Reader
+	Writer                io.Writer
+	notificationsProvider NotificationsProvider
 }
 
-func NewServer() *Server {
+func NewServer(in io.Reader, out io.Writer) *Server {
 	return &Server{
-		handlers:             make(map[string]Handler),
-		notificationHandlers: make(map[string]NotificationHandler),
-		requests:             make(chan *Request, 8),
-		out:                  make(chan *Resolution, 8),
-		Logger:               log.New(ioutil.Discard, "[jsonrpc] ", log.Ldate|log.Ltime),
+		handlers:              make(map[string]Handler),
+		notificationHandlers:  make(map[string]NotificationHandler),
+		requests:              make(chan *Request, 8),
+		out:                   make(chan *Resolution, 8),
+		Logger:                log.New(ioutil.Discard, "[jsonrpc] ", log.Ldate|log.Ltime),
+		Reader:                in,
+		Writer:                out,
+		notificationsProvider: nil,
 	}
+}
+
+func (s *Server) SetNotificationsProvider(provider NotificationsProvider) {
+	s.notificationsProvider = provider
 }
 
 // AddHandler registers a handler for a given method
@@ -100,23 +119,23 @@ func (s *Server) GetResponse(r *Request) (bool, interface{}, *ResponseError) {
 }
 
 // HandleRequest resolves the response and send it down the output
-func (s *Server) HandleRequest(req *Request, out io.Writer) {
+func (s *Server) HandleRequest(req *Request) {
 	reply, res, err := s.GetResponse(req)
 	resolution := &Resolution{Reply: reply, Res: res, Err: err, ID: req.ID}
-	s.HandleResponse(resolution, out)
+	s.HandleResponse(resolution)
 }
 
 // HandleResponse will send a response or error down the output
 // based on the properties of a given resolution
-func (s *Server) HandleResponse(resolution *Resolution, out io.Writer) {
+func (s *Server) HandleResponse(resolution *Resolution) {
 	if resolution.Err != nil {
-		err := s.PrintError(out, resolution.ID, resolution.Err)
+		err := s.PrintError(resolution.ID, resolution.Err)
 		if err != nil {
 			s.HandleError(err)
 		}
 	} else if resolution.Reply {
 		// Notifications, will return false for reply
-		err := s.PrintResponse(out, resolution.ID, resolution.Res, nil)
+		err := s.PrintResponse(resolution.ID, resolution.Res, nil)
 		if err != nil {
 			s.HandleError(err)
 		}
@@ -130,24 +149,39 @@ func (s *Server) HandleError(err error) {
 
 // Listen continuously reads the input for requests
 // It uses goroutines to handle requests as they come
-func (s *Server) Listen(in io.Reader, out io.Writer) {
+func (s *Server) Listen() {
+	go s.SendNotifications()
 	for {
-		req, readErr := ReadRequest(in)
+		req, readErr := ReadRequest(s.Reader)
 		if readErr != nil {
-			go s.HandleResponse(&Resolution{Err: readErr, Reply: true, Res: nil}, out)
+			go s.HandleResponse(&Resolution{Err: readErr, Reply: true, Res: nil})
 			return
 		}
-		go s.HandleRequest(req, out)
+		go s.HandleRequest(req)
+	}
+}
+
+func (s *Server) SendNotifications() {
+	if s.notificationsProvider == nil {
+		return
+	}
+	for {
+		notifsChan := s.notificationsProvider.Notifications()
+		n := <-notifsChan
+		err := s.PrintNotification(n)
+		if err != nil {
+			s.HandleError(err)
+		}
 	}
 }
 
 // PrintError send an error back to the client
-func (s *Server) PrintError(w io.Writer, id int, err *ResponseError) error {
-	return s.PrintResponse(w, id, nil, err)
+func (s *Server) PrintError(id int, err *ResponseError) error {
+	return s.PrintResponse(id, nil, err)
 }
 
 // PrintResponse sends a response back to the client
-func (s *Server) PrintResponse(w io.Writer, id int, contents interface{}, resErr *ResponseError) error {
+func (s *Server) PrintResponse(id int, contents interface{}, resErr *ResponseError) error {
 	// Build the response object
 	res := &Response{ID: id, Error: resErr, Result: contents}
 	jsonString, err := json.Marshal(res)
@@ -155,7 +189,21 @@ func (s *Server) PrintResponse(w io.Writer, id int, contents interface{}, resErr
 		return err
 	}
 	s.Logger.Printf("Sending response: %s\n", jsonString)
-	_, err = fmt.Fprintf(w, "Content-Length: %d\r\n\r\n%s", len(jsonString), jsonString)
+	_, err = fmt.Fprintf(s.Writer, "Content-Length: %d\r\n\r\n%s", len(jsonString), jsonString)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// PrintNotification sends a notification back to the client
+func (s *Server) PrintNotification(notification *Notification) error {
+	jsonString, err := json.Marshal(notification)
+	if err != nil {
+		return err
+	}
+	s.Logger.Printf("Sending notification: %s\n", jsonString)
+	_, err = fmt.Fprintf(s.Writer, "Content-Length: %d\r\n\r\n%s", len(jsonString), jsonString)
 	if err != nil {
 		return err
 	}

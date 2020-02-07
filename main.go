@@ -49,7 +49,7 @@ func main() {
 	// Create the taskfile implementation of the LSP
 	impl := extension.New()
 	// Create the jsonrpc server
-	s := jsonrpc.NewServer()
+	s := jsonrpc.NewServer(reader, writer)
 
 	// Override the Discard output and provide the same output as the logger
 	if *traceEnabled {
@@ -59,5 +59,5 @@ func main() {
 
 	// Create the LSP Server
 	_ = lsp.NewServer(s, impl, logger)
-	s.Listen(reader, writer)
+	s.Listen()
 }

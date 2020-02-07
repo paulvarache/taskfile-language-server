@@ -44,6 +44,7 @@ type LSPServer struct {
 
 type Implementation interface {
 	RegisterHandlers(*jsonrpc.Server)
+	Notifications() chan *jsonrpc.Notification
 }
 
 func NewServer(s *jsonrpc.Server, impl Implementation, logger *log.Logger) *LSPServer {
@@ -67,6 +68,10 @@ func NewServer(s *jsonrpc.Server, impl Implementation, logger *log.Logger) *LSPS
 	s.AddHandler("completionItem/resolve", server.CompletionItemResolve)
 	s.AddNotificationHandler("workspace/didChangeWatchedFiles", server.DidChangeWatchedFiles)
 	s.AddHandler("textDocument/hover", server.TextDocumentHover)
+
+	s.SetNotificationsProvider(impl)
+
+	impl.RegisterHandlers(s)
 
 	return server
 }

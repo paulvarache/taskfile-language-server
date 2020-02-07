@@ -3,6 +3,7 @@ package taskfile
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
 
 	"github.com/goccy/go-yaml/ast"
@@ -22,9 +23,11 @@ func init() {
 }
 
 type Taskfile struct {
-	Path  string           `json:"path"`
-	Tasks map[string]*Task `json:"tasks"`
-	Vars  map[string]*Var  `json:"vars"`
+	Path     string           `json:"path"`
+	Tasks    map[string]*Task `json:"tasks"`
+	Vars     map[string]*Var  `json:"vars"`
+	Stale    bool             `json:"-"`
+	Contents string           `json:"-"`
 }
 
 func IsInRange(line int, col int, r Range) bool {
@@ -45,7 +48,7 @@ func Parse(doc *ast.Document) (*Taskfile, error) {
 	if !ok {
 		return nil, fmt.Errorf("OOPS")
 	}
-	taskfile := &Taskfile{}
+	taskfile := &Taskfile{Stale: false}
 	for _, v := range m.Values {
 		tasks, err := GetTasks(v)
 		if err != nil {
@@ -65,40 +68,64 @@ func Parse(doc *ast.Document) (*Taskfile, error) {
 	return taskfile, nil
 }
 
+func Invalidate(p string, contents string) {
+	tf, ok := Taskfiles[p]
+	if !ok {
+		Taskfiles[p] = &Taskfile{
+			Stale:    true,
+			Contents: contents,
+		}
+	} else {
+		tf.Stale = true
+		tf.Contents = contents
+	}
+}
+
 // PreloadWithBytes will parse a yaml file and extract
 // the Taskfile specific information like tasks, variables and expressions
 // This will ignore parsing errors
-func PreloadWithBytes(path string, contents []byte) {
+func PreloadWithBytes(path string, contents []byte) *Taskfile {
 	f, err := parser.ParseBytes(contents, parser.ParseComments)
 	if err != nil {
-		Taskfiles[path] = nil
-		return
+		// TODO: Try partial parsing and keep valid things in the tree
+		return nil
 	}
 	tf, err := Parse(f.Docs[0])
 	tf.Path = path
+	tf.Stale = false
 	if err != nil {
-		Taskfiles[path] = nil
-		return
+		// TODO: Try partial parsing and keep valid things in the tree
+		return nil
 	}
 	Taskfiles[path] = tf
+	return tf
 }
 
-func Preload(path string) error {
+func Preload(path string) (*Taskfile, error) {
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	PreloadWithBytes(path, bytes)
-	return nil
+	return PreloadWithBytes(path, bytes), nil
 }
 
-func IsTemplateKey(key string) bool {
-	switch key {
-	case "desc":
-		return true
-	default:
-		return false
+func GetParsedTaskfile(path string) *Taskfile {
+	tf, ok := Taskfiles[path]
+	if !ok {
+		info, err := os.Stat(path)
+		if os.IsNotExist(err) || info.IsDir() {
+			return nil
+		}
+		tf, err = Preload(path)
+		if err != nil {
+			return nil
+		}
+		return tf
 	}
+	if !tf.Stale {
+		return tf
+	}
+	return PreloadWithBytes(path, []byte(tf.Contents))
 }
 
 type Expr struct {
