@@ -3,7 +3,7 @@ version: 2
 vars:
   APP_NAME: taskfile_language_server
   HASH: $(git rev-parse --short HEAD)
-  VERSION: 0.0.0
+  VERSION: 0.0.4
   OUTPUT: "{{.APP_NAME}}_{{OS}}_{{ARCH}}"
 
 tasks:
